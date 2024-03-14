@@ -25,10 +25,12 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest
@@ -144,6 +146,7 @@ class ArtifactControllerTest {
     @Test
     void TestAddArtifactSuccess() throws Exception {
         // Given
+        // provided by client
         ArtifactDto artifactDto = new ArtifactDto(null,
                                         "Deluminator",
                                         "A Deluminator is a device invented by Albus Dumbledore that resembles a cigarette lighter. " +
@@ -152,6 +155,7 @@ class ArtifactControllerTest {
                                         null);
         String json = this.objectMapper.writeValueAsString(artifactDto);
 
+        // this is savedArtifact, created after calling artifactService
         Artifact savedArtifact = new Artifact();
         savedArtifact.setId("1250808601744904191");
         savedArtifact.setName("Deluminator");
@@ -170,4 +174,72 @@ class ArtifactControllerTest {
                 .andExpect(jsonPath("$.data.description").value(savedArtifact.getDescription()))
                 .andExpect(jsonPath("$.data.imgUrl").value(savedArtifact.getImgUrl()));
     }
+
+    @Test
+    void testUpdateArtifactSuccess() throws Exception {
+        // Given
+        // provided by client
+        ArtifactDto artifactDto = new ArtifactDto("1250808601744904191",
+                "Deluminator",
+                 "An updated description",
+                "ImageUrl",
+                null);
+        String json = this.objectMapper.writeValueAsString(artifactDto);
+
+        // return to client
+        Artifact updateArtifact = new Artifact();
+        updateArtifact.setId("1250808601744904191");
+        updateArtifact.setName("Deluminator");
+        updateArtifact.setDescription("An updated description");
+        updateArtifact.setImgUrl("ImageUrl");
+
+        given(this.artifactService.update(eq("1250808601744904191"),Mockito.any(Artifact.class))).willReturn(updateArtifact);
+
+        // When and Then
+        this.mockMvc.perform(put("/api/v1/artifacts/1250808601744904191").contentType(APPLICATION_JSON).content(json).accept(APPLICATION_JSON))
+                .andExpect(jsonPath("$.flag").value(true))
+                .andExpect(jsonPath("$.code").value(StatusCode.SUCCESS))
+                .andExpect(jsonPath("$.message").value("Update Success"))
+                .andExpect(jsonPath("$.data.id").value("1250808601744904191"))
+                .andExpect(jsonPath("$.data.name").value(updateArtifact.getName()))
+                .andExpect(jsonPath("$.data.description").value(updateArtifact.getDescription()))
+                .andExpect(jsonPath("$.data.imgUrl").value(updateArtifact.getImgUrl()));
+    }
+
+    @Test
+    void testUpdateArtifactErrorWithNonExistentId() throws Exception {
+        // Given
+        // provided by client
+        ArtifactDto artifactDto = new ArtifactDto("1250808601744904191",
+                "Deluminator",
+                "An updated description",
+                "ImageUrl",
+                null);
+        String json = this.objectMapper.writeValueAsString(artifactDto);
+
+
+        given(this.artifactService.update(eq("1250808601744904191"),Mockito.any(Artifact.class)))
+                .willThrow(new ArtifactNotFoundException("1250808601744904191"));
+
+        // When and Then
+        this.mockMvc.perform(put("/api/v1/artifacts/1250808601744904191").contentType(APPLICATION_JSON).content(json).accept(APPLICATION_JSON))
+                .andExpect(jsonPath("$.flag").value(false))
+                .andExpect(jsonPath("$.code").value(StatusCode.NOT_FOUND))
+                .andExpect(jsonPath("$.message").value("Could not find artifact with Id 1250808601744904191 :("))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void testDeleteArtifactErrorWithNonExistentId() throws Exception {
+        // Given
+        doThrow(new ArtifactNotFoundException("1250808601744904191")).when(this.artifactService).delete("1250808601744904191");
+        // When and Then
+        this.mockMvc.perform(delete("/api/v1/artifacts/1250808601744904191").accept(APPLICATION_JSON))
+                .andExpect(jsonPath("$.flag").value(false))
+                .andExpect(jsonPath("$.code").value(StatusCode.NOT_FOUND))
+                .andExpect(jsonPath("$.message").value("Could not find artifact with Id 1250808601744904191 :("))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+
 }
