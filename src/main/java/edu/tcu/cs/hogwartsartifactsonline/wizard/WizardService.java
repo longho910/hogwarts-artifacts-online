@@ -52,9 +52,14 @@ public class WizardService {
         Wizard wizard = this.wizardRepository.findById(wizardId)
                 .orElseThrow(() -> new ObjectNotFoundException("wizard", wizardId));
 
-        Artifact artifact = this.artifactRepository.findById(artifactId)
+        Artifact artifactToBeAssigned = this.artifactRepository.findById(artifactId)
                 .orElseThrow(() -> new ObjectNotFoundException("wizard", wizardId));
 
-        wizard.addNewArtifact(artifact);
+        // We need to see if artifact is already owned by some wizard
+        if (artifactToBeAssigned.getOwner() != null) {
+            artifactToBeAssigned.getOwner().removeArtifact(artifactToBeAssigned);
+        }
+
+        wizard.addNewArtifact(artifactToBeAssigned);
     }
 }
