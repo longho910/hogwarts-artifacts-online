@@ -39,7 +39,7 @@ public class ExceptionHandlerAdvice {
         });
         return new Result(false,
                 StatusCode.INVALID_ARGUMENT,
-                "Provided data is invalid, see data for details",
+                "Provided arguments is invalid, see data for details",
                 map);
     }
 }
